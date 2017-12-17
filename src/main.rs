@@ -26,9 +26,8 @@ fn main() {
        .get_matches();
 
     // Get the input file name. Crash if not specified.
-    let mut infile_name = "";
+    let infile_name;
     if matches.is_present("INPUT") {
-        println!("Input file is {}", matches.value_of("INPUT").unwrap());
         infile_name = matches.value_of("INPUT").unwrap();
     } else {
         println!("No input file name supplied!");
@@ -41,7 +40,7 @@ fn main() {
 
     // Open the input image file and resize it.
     let inimg = image::open(&Path::new(&infile_name)).ok().expect("Opening image failed");
-    let img = inimg.resize(80, 24, FilterType::Nearest);
+    let img = inimg.resize_exact(80, 24, FilterType::Nearest);
 
     // Render the image to the terminal.
     render(img, mode);
