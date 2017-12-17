@@ -1,15 +1,11 @@
-// Steps to do this:
-// 1. Open file
-// 2. Read image
-// 3. Resize image
-// 4. Render image
-use std::io;
+// A Rust program that prints images to the terminal. A fun, if useless,
+// project that taught me to code in Rust.
 use std::path::Path;
+use std::process;
 extern crate image;
 use image::{GenericImage, Pixel, FilterType};
 extern crate clap;
 use clap::{App, Arg};
-use std::process;
 
 
 fn main() {
@@ -25,33 +21,47 @@ fn main() {
         .arg(Arg::with_name("mode")
             .help("What visual style to use when printing the image.")
             .short("m")
-            .possible_values(&["pound"]))
+            .takes_value(true)
+            .possible_values(&["pound", "ascii"]))
        .get_matches();
 
-    // Get the input file name.
+    // Get the input file name. Crash if not specified.
     let mut infile_name = "";
     if matches.is_present("INPUT") {
         println!("Input file is {}", matches.value_of("INPUT").unwrap());
         infile_name = matches.value_of("INPUT").unwrap();
     } else {
         println!("No input file name supplied!");
-        infile_name = "";
         process::exit(1);
     }
 
+    // Handle mode inputs. If the user doesn't specify a mode, default to
+    // pound.
+    let mode = matches.value_of("mode").unwrap_or("pound");
+
     // Open the input image file and resize it.
     let inimg = image::open(&Path::new(&infile_name)).ok().expect("Opening image failed");
-    let img = inimg.resize(32, 32, FilterType::Nearest);
+    let img = inimg.resize(80, 24, FilterType::Nearest);
 
     // Render the image to the terminal.
-    render(img);
+    render(img, mode);
 }
 
 
 // Print the input image file.
-fn render(img: image::DynamicImage) {
+fn render(img: image::DynamicImage, mode: &str) {
+    if mode == "pound" {
+        render_pound(img);
+    } else if mode == "ascii" {
+        render_ascii(img);
+    } else {
+        println!("Invalid rendering mode {}.", mode);
+        process::exit(1);
+    }
+}
+
+fn render_pound(img: image::DynamicImage) {
     let (width, height) = img.dimensions();
-    println!("{} {}", width, height);
     for y in 0..height {
         for x in 0..width {
             let this_pixel = img.get_pixel(x, y);
@@ -60,6 +70,27 @@ fn render(img: image::DynamicImage) {
             //println!("{}", brightness);
             if luma < 128 {
                 print!("#");
+            } else {
+                print!(" ");
+            }
+        }
+        println!();
+    }
+}
+
+fn render_ascii(img: image::DynamicImage) {
+    let (width, height) = img.dimensions();
+    for y in 0..height {
+        for x in 0..width {
+            let this_pixel = img.get_pixel(x, y);
+            let lum = this_pixel.to_luma();
+            let luma = lum.data[0];
+            if luma < 64 {
+                print!("0");
+            } else if luma < 128 {
+                print!(":");
+            } else if luma < 192 {
+                print!(".");
             } else {
                 print!(" ");
             }
