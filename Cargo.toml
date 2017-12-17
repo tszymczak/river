@@ -5,3 +5,4 @@ authors = ["thomas"]
 
 [dependencies]
 image = "*"
+clap = "*"
