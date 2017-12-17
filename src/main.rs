@@ -48,10 +48,8 @@ fn main() {
 }
 
 // Resize an image for display in the terminal, based on the aspect ratio
-// (width/height) of the terminal characters and the maximum size. Currently
-// this function accomplishes its task in two resize operations which is
-// inefficient and potentially accurate. TODO: Autodetect size and make it
-// configurable, make it use only one resize operation.
+// (width/height) of the terminal characters and the maximum size. TODO:
+// Autodetect size and make the size configurable.
 fn resize(inimg: image::DynamicImage) -> image::DynamicImage {
     // This is the aspect ratio of each terminal character, equal to its width
     // divided by its height. This value is a good approximation for GNOME
@@ -63,25 +61,38 @@ fn resize(inimg: image::DynamicImage) -> image::DynamicImage {
     let (width, height) = inimg.dimensions();
     let xi: u32 = width as u32;
     let yi: u32 = height as u32;
-    // Use nearest neighbor resizing to make it as sharp as possible.
-    // First resize to compensate for terminal characters not being square.
-    // strimg = stretched imange.
-    let strimg;
-    let strx: u32;
-    let stry: u32;
     if aspect > 1.0 {
-        stry = f32::trunc((yi as f32)*aspect) as u32;
-        strimg = inimg.resize_exact(xi, stry, FilterType::Nearest);
+        let xeff: f32 = xi as f32;
+        let yeff: f32 = (yi as f32) * aspect;
+        let xscale: f32 = (xmax as f32) / xeff;
+        let yscale: f32 = (ymax as f32) / yeff;
+        let scale: f32;
+        if xscale < yscale {
+            scale = xscale;
+        } else {
+            scale = yscale;
+        }
+        let xf: u32 = f32::trunc(xeff*scale) as u32;
+        let yf: u32 = f32::trunc(yeff*scale) as u32;
+        // Use nearest neighbor resizing to make it as sharp as possible.
+        return inimg.resize_exact(xf, yf, FilterType::Nearest);
     } else if aspect < 1.0 {
-        let inv_aspect = 1.0/aspect;
-        strx = f32::trunc((xi as f32)*inv_aspect) as u32;
-        strimg = inimg.resize_exact(strx, yi, FilterType::Nearest);
+        let xeff: f32 = (xi as f32) / aspect;
+        let yeff: f32 = yi as f32;
+        let xscale: f32 = (xmax as f32) / xeff;
+        let yscale: f32 = (ymax as f32) / yeff;
+        let scale: f32;
+        if xscale < yscale {
+            scale = xscale;
+        } else {
+            scale = yscale;
+        }
+        let xf: u32 = f32::trunc(xeff*scale) as u32;
+        let yf: u32 = f32::trunc(yeff*scale) as u32;
+        return inimg.resize_exact(xf, yf, FilterType::Nearest);
     } else {
-        strimg = inimg;
+        return inimg.resize(xmax, ymax, FilterType::Nearest);
     }
-
-    // Finally, resize to fit the terminal.
-    strimg.resize(xmax, ymax, FilterType::Nearest)
 }
 
 // Print the input image file.
@@ -100,10 +111,8 @@ fn render_pound(img: image::DynamicImage) {
     let (width, height) = img.dimensions();
     for y in 0..height {
         for x in 0..width {
-            let this_pixel = img.get_pixel(x, y);
-            let lum = this_pixel.to_luma();
-            let luma = lum.data[0];
-            //println!("{}", brightness);
+            // Get the brightness level of the pixel.
+            let luma = img.get_pixel(x, y).to_luma().data[0];
             if luma < 128 {
                 print!("#");
             } else {
@@ -118,9 +127,8 @@ fn render_ascii(img: image::DynamicImage) {
     let (width, height) = img.dimensions();
     for y in 0..height {
         for x in 0..width {
-            let this_pixel = img.get_pixel(x, y);
-            let lum = this_pixel.to_luma();
-            let luma = lum.data[0];
+            // Get the brightness level of the pixel.
+            let luma = img.get_pixel(x, y).to_luma().data[0];
             if luma < 64 {
                 print!("0");
             } else if luma < 128 {
