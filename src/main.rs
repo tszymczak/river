@@ -2,6 +2,7 @@
 // project that taught me to code in Rust.
 use std::path::Path;
 use std::process;
+use std::f32;
 extern crate image;
 use image::{GenericImage, Pixel, FilterType};
 extern crate clap;
@@ -40,12 +41,48 @@ fn main() {
 
     // Open the input image file and resize it.
     let inimg = image::open(&Path::new(&infile_name)).ok().expect("Opening image failed");
-    let img = inimg.resize_exact(80, 24, FilterType::Nearest);
+    let img = resize(inimg);
 
     // Render the image to the terminal.
     render(img, mode);
 }
 
+// Resize an image for display in the terminal, based on the aspect ratio
+// (width/height) of the terminal characters and the maximum size. Currently
+// this function accomplishes its task in two resize operations which is
+// inefficient and potentially accurate. TODO: Autodetect size and make it
+// configurable, make it use only one resize operation.
+fn resize(inimg: image::DynamicImage) -> image::DynamicImage {
+    // This is the aspect ratio of each terminal character, equal to its width
+    // divided by its height. This value is a good approximation for GNOME
+    // Terminal on Linux but other platforms have different values.
+    let aspect = 0.5;
+    // Resize to fit a standard 80x24 terminal.
+    let xmax: u32 = 80;
+    let ymax: u32 = 24;
+    let (width, height) = inimg.dimensions();
+    let xi: u32 = width as u32;
+    let yi: u32 = height as u32;
+    // Use nearest neighbor resizing to make it as sharp as possible.
+    // First resize to compensate for terminal characters not being square.
+    // strimg = stretched imange.
+    let strimg;
+    let strx: u32;
+    let stry: u32;
+    if aspect > 1.0 {
+        stry = f32::trunc((yi as f32)*aspect) as u32;
+        strimg = inimg.resize_exact(xi, stry, FilterType::Nearest);
+    } else if aspect < 1.0 {
+        let inv_aspect = 1.0/aspect;
+        strx = f32::trunc((xi as f32)*inv_aspect) as u32;
+        strimg = inimg.resize_exact(strx, yi, FilterType::Nearest);
+    } else {
+        strimg = inimg;
+    }
+
+    // Finally, resize to fit the terminal.
+    strimg.resize(xmax, ymax, FilterType::Nearest)
+}
 
 // Print the input image file.
 fn render(img: image::DynamicImage, mode: &str) {
