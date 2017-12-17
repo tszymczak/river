@@ -22,9 +22,9 @@ fn main() {
             .help("The name of the input file")
             .required(true)
             .index(1))
-        .arg(Arg::with_name("style")
-            .help("What style to use when printing the image. This determines how it looks.")
-            .short("s")
+        .arg(Arg::with_name("mode")
+            .help("What visual style to use when printing the image.")
+            .short("m")
             .possible_values(&["pound"]))
        .get_matches();
 
