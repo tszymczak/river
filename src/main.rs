@@ -2,11 +2,11 @@
 // project that taught me to code in Rust.
 use std::path::Path;
 use std::process;
-use std::f32;
+use std::{f32, i32};
 extern crate image;
 use image::{GenericImage, Pixel, FilterType};
 extern crate termion;
-use termion::{color};
+use termion::color;
 extern crate clap;
 use clap::{App, Arg};
 
@@ -26,8 +26,16 @@ fn main() {
             .help("What visual style to use when printing the image.")
             .short("m")
             .takes_value(true)
-            .possible_values(&["pound", "ascii", "8color"]))
-       .get_matches();
+            .possible_values(&["pound", "ascii", "asciisimple", "8color", "16color"]))
+        .arg(Arg::with_name("height")
+            .help("Manually set the height of the terminal in columns.")
+            .short("y")
+            .takes_value(true))
+        .arg(Arg::with_name("width")
+            .help("Manually set the width of the terminal in rows.")
+            .short("x")
+            .takes_value(true))
+        .get_matches();
 
     // Get the input file name. Crash if not specified.
     let infile_name;
@@ -38,8 +46,36 @@ fn main() {
         process::exit(1);
     }
 
-    // Get the width and height of the terminal (in characters).
-    let (x, y) = get_dimensions();
+    // Determine the width of the terminal. Use the dimensions specified by the
+    // user or detect the width of the terminal.
+    let x: u32;
+    let y: u32;
+    let (det_x, det_y) = get_dimensions();
+
+    if matches.is_present("height") {
+        match matches.value_of("height").unwrap().parse::<u32>() {
+            Ok(n) => y = n,
+            Err(e) => {
+                eprintln!("Invalid value `{}' for terminal height.", matches.value_of("height").unwrap());
+                y = det_y;
+            },
+        }
+    } else {
+        y = det_y;
+    }
+
+    if matches.is_present("width") {
+        match matches.value_of("width").unwrap().parse::<u32>() {
+            Ok(n) => x = n,
+            Err(e) => {
+                eprintln!("Invalid value `{}' for terminal width.", matches.value_of("width").unwrap());
+                x = det_x;
+            },
+        }
+    } else {
+        x = det_x;
+    }
+
 
     // Handle mode inputs. If the user doesn't specify a mode, default to
     // ascii.
@@ -56,22 +92,21 @@ fn main() {
 // Get the dimensions of the current terminal, in characters. Returns a tuple
 // containing the width of the terminal, then the height.
 fn get_dimensions() -> (u32, u32) {
-    let (default_x, default_y) = (80, 24);
-    let term_result = termion::terminal_size();
     // If we can't get the size of the terminal, use 80x24 as a sane default.
     // This actually happens when we redirect the program's output.
+    let (default_x, default_y) = (80, 24);
+    let term_result = termion::terminal_size();
     if term_result.is_ok() {
         let (x, y) = term_result.unwrap();
         return (x as u32, y as u32);
     } else {
-        eprintln!("Warning: Can't get the dimensions of this terminal, assuming {} by {}", default_x, default_y);
+        eprintln!("Warning: Can't autodetect terminal dimensions, assuming {} by {}. If you're overriding the automatic size, ignore this warning.", default_x, default_y);
         return (default_x, default_y);
     }
 }
 
 // Resize an image for display in the terminal, based on the aspect ratio
-// (width/height) of the terminal characters and the maximum size. TODO:
-// Make the size configurable.
+// (width/height) of the terminal characters and the maximum size.
 fn resize(inimg: image::DynamicImage, x: u32, y: u32) -> image::DynamicImage {
     // This is the aspect ratio of each terminal character, equal to its width
     // divided by its height. This value is a good approximation for GNOME
@@ -124,8 +159,12 @@ fn render(img: image::DynamicImage, mode: &str) {
         render_pound(img);
     } else if mode == "ascii" {
         render_ascii(img);
+    } else if mode == "asciisimple" {
+        render_asciisimple(img);
     } else if mode == "8color" {
-        render_ansi(img);
+        render_8color(img);
+    } else if mode == "16color" {
+        render_16color(img);
     } else {
         println!("Invalid rendering mode {}. This is a programmer error.", mode);
         process::exit(1);
@@ -156,12 +195,20 @@ fn render_ascii(img: image::DynamicImage) {
         for x in 0..width {
             // Get the brightness level of the pixel.
             let luma = img.get_pixel(x, y).to_luma().data[0];
-            if luma < 64 {
-                print!("0");
+            if luma < 32 {
+                print!("W");
+            } else if luma < 64 {
+                print!("O");
+            } else if luma < 96 {
+                print!("L");
             } else if luma < 128 {
+                print!(";");
+            } else if luma < 160 {
                 print!(":");
             } else if luma < 192 {
-                print!(".");
+                print!("'");
+            } else if luma < 224 {
+                print!("-");
             } else {
                 print!(" ");
             }
@@ -171,15 +218,38 @@ fn render_ascii(img: image::DynamicImage) {
 }
 
 
+// Display an image using an ASCII art style.
+fn render_asciisimple(img: image::DynamicImage) {
+    let (width, height) = img.dimensions();
+    for y in 0..height {
+        for x in 0..width {
+            // Get the brightness level of the pixel.
+            let luma = img.get_pixel(x, y).to_luma().data[0];
+            if luma < 32 {
+                print!("W");
+            } else if luma < 64 {
+                print!("O");
+            } else if luma < 128 {
+                print!("o");
+            } else if luma < 192 {
+                print!(":");
+            } else {
+                print!(" ");
+            }
+        }
+        println!();
+    }
+}
+
 // Display an image using ANSI color.
-fn render_ansi(img: image::DynamicImage) {
+fn render_8color(img: image::DynamicImage) {
     let (width, height) = img.dimensions();
     for y in 0..height {
         for x in 0..width {
             // Get the red, green, and blue channels of the pixel and send them
             // to the quantize function.
             let channels = img.get_pixel(x, y).data;
-            let best_color = quantize_ansi(channels[0], channels[1], channels[2]);
+            let best_color = quantize_8color(channels[0], channels[1], channels[2]);
             match best_color {
                 0 => print!("{} ", color::Bg(color::Black)),
                 1 => print!("{} ", color::Bg(color::Red)),
@@ -201,7 +271,7 @@ fn render_ansi(img: image::DynamicImage) {
     }
 }
 
-fn quantize_ansi(red: u8, green: u8, blue:u8) -> u8 {
+fn quantize_8color(red: u8, green: u8, blue:u8) -> u8 {
 // TODO: This palette is a quick-and-dirty approximation.
 // This is the palette that stores the color values of the eight basic terminal
 // colors. The elements in the inner arrays are red, green, blue. Note that
@@ -210,16 +280,77 @@ let palette: [[u8; 3]; 8] = [[0, 0, 0], [255, 0, 0], [0, 255, 0], [255, 255, 0],
     // We set min_error initially to 442 because that's higher than the highest
     // possible value it could have: the error between the colors (0, 0, 0) and
     // (255, 255, 255) is only 441.67.
-    let mut min_error = 442.0;
-    let mut min_error_color: u8 = 0;
+    let mut best_error = 442.0;
+    let mut best_color: u8 = 0;
     for i in 0..palette.len() {
         // Calculate the Euclidean distance from the palette color to the
         // actual color of the pixel.
         let error = f32::sqrt( ((red as i32 - palette[i][0] as i32).pow(2) + (green as i32 - palette[i][1] as i32).pow(2) + (blue as i32 - palette[i][2] as i32).pow(2)) as f32 );
-        if error < min_error {
-            min_error = error;
-            min_error_color = i as u8;
+        if error < best_error {
+            best_error = error;
+            best_color = i as u8;
         }
     }
-    return min_error_color;
+    return best_color;
+}
+
+// Display an image using ANSI color.
+fn render_16color(img: image::DynamicImage) {
+    let (width, height) = img.dimensions();
+    for y in 0..height {
+        for x in 0..width {
+            // Get the red, green, and blue channels of the pixel and send them
+            // to the quantize function.
+            let channels = img.get_pixel(x, y).data;
+            let best_color = quantize_16color(channels[0], channels[1], channels[2]);
+            match best_color {
+                0 => print!("{} ", color::Bg(color::Black)),
+                1 => print!("{} ", color::Bg(color::Red)),
+                2 => print!("{} ", color::Bg(color::Green)),
+                3 => print!("{} ", color::Bg(color::Yellow)),
+                4 => print!("{} ", color::Bg(color::Blue)),
+                5 => print!("{} ", color::Bg(color::Magenta)),
+                6 => print!("{} ", color::Bg(color::Cyan)),
+                7 => print!("{} ", color::Bg(color::White)),
+                8 => print!("{} ", color::Bg(color::LightBlack)),
+                9 => print!("{} ", color::Bg(color::LightRed)),
+                10 => print!("{} ", color::Bg(color::LightGreen)),
+                11 => print!("{} ", color::Bg(color::LightYellow)),
+                12 => print!("{} ", color::Bg(color::LightBlue)),
+                13 => print!("{} ", color::Bg(color::LightMagenta)),
+                14 => print!("{} ", color::Bg(color::LightCyan)),
+                15 => print!("{} ", color::Bg(color::LightWhite)),
+                // We _should_ only get colors 0 through 15 but a little
+                // defensive programming never hurts.
+                _ => print!("{} ", color::Bg(color::White)),
+            }
+        }
+        // Reset colors at the end of each line. If we don't do this, the
+        // color of the rightmost pixel in each line is extended to the right
+        // edge of the screen.
+        println!("{}", color::Bg(color::Reset));
+    }
+}
+
+fn quantize_16color(red: u8, green: u8, blue:u8) -> u8 {
+// TODO: This palette is a quick-and-dirty approximation.
+// This is the palette that stores the color values of the 16 basic terminal
+// colors. The elements in the inner arrays are red, green, blue. Note that
+// the actual colors vary depending on the terminal.
+let palette: [[u8; 3]; 16] = [[0, 0, 0], [127, 0, 0], [0, 127, 0], [127, 127, 0], [0, 0, 127], [127, 0, 127], [0, 127, 127], [127, 127, 127], [0, 0, 0], [255, 0, 0], [0, 255, 0], [255, 255, 0], [0, 0, 255], [255, 0, 255], [0, 255, 255], [255, 255, 255]];
+    // We set min_error initially to 442 because that's higher than the highest
+    // possible value it could have: the error between the colors (0, 0, 0) and
+    // (255, 255, 255) is only 441.67.
+    let mut best_error = 442.0;
+    let mut best_color: u8 = 0;
+    for i in 0..palette.len() {
+        // Calculate the Euclidean distance from the palette color to the
+        // actual color of the pixel.
+        let error = f32::sqrt( ((red as i32 - palette[i][0] as i32).pow(2) + (green as i32 - palette[i][1] as i32).pow(2) + (blue as i32 - palette[i][2] as i32).pow(2)) as f32 );
+        if error < best_error {
+            best_error = error;
+            best_color = i as u8;
+        }
+    }
+    return best_color;
 }
