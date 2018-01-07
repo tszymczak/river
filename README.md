@@ -1,6 +1,6 @@
 # river
 River is a program that prints out images in the terminal using ASCII art
-or colored blocks. I named it river because it is a **R**ust **I**mage **V**iew**ER**
+or colored blocks. I named it river because it is a **R**ust **I**mage **V**iew**ER**.
 
 Written by Thomas Szymczak, @tszymczak on GitHub.
 
