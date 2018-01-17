@@ -287,11 +287,12 @@ fn render_8color(img: image::DynamicImage) {
 }
 
 fn quantize_8color(red: u8, green: u8, blue:u8) -> u8 {
-// TODO: This palette is a quick-and-dirty approximation.
-// This is the palette that stores the color values of the eight basic terminal
-// colors. The elements in the inner arrays are red, green, blue. Note that
-// the actual colors vary depending on the terminal.
-let palette: [[u8; 3]; 8] = [[0, 0, 0], [255, 0, 0], [0, 255, 0], [255, 255, 0], [0, 0, 255], [255, 0, 255], [0, 255, 255], [255, 255, 255]];
+// This array is the palette of color values for the eight basic terminal
+// colors. The elements in the inner arrays are red, green, blue. The color
+// values here are the values used in xterm (According to
+// https://jonasjacek.github.io/colors/ ) but are a reasonable approximation
+// for terminal in general.
+let palette: [[u8; 3]; 8] = [[0, 0, 0], [128, 0, 0], [0, 128, 0], [128, 128, 0], [0, 0, 128], [128, 0, 128], [0, 128, 128], [192, 192, 192]];
     // We set min_error initially to 442 because that's higher than the highest
     // possible value it could have: the error between the colors (0, 0, 0) and
     // (255, 255, 255) is only 441.67.
@@ -348,11 +349,12 @@ fn render_16color(img: image::DynamicImage) {
 }
 
 fn quantize_16color(red: u8, green: u8, blue:u8) -> u8 {
-// TODO: This palette is a quick-and-dirty approximation.
-// This is the palette that stores the color values of the 16 basic terminal
-// colors. The elements in the inner arrays are red, green, blue. Note that
-// the actual colors vary depending on the terminal.
-let palette: [[u8; 3]; 16] = [[0, 0, 0], [127, 0, 0], [0, 127, 0], [127, 127, 0], [0, 0, 127], [127, 0, 127], [0, 127, 127], [127, 127, 127], [0, 0, 0], [255, 0, 0], [0, 255, 0], [255, 255, 0], [0, 0, 255], [255, 0, 255], [0, 255, 255], [255, 255, 255]];
+// This array is the palette of color values for the eight basic terminal
+// colors. The elements in the inner arrays are red, green, blue. The color
+// values here are the values used in xterm (According to
+// https://jonasjacek.github.io/colors/ ) but are a reasonable approximation
+// for terminal in general.
+let palette: [[u8; 3]; 16] = [[0, 0, 0], [128, 0, 0], [0, 128, 0], [128, 128, 0], [0, 0, 128], [128, 0, 128], [0, 128, 128], [192, 192, 192], [128, 128, 128], [255, 0, 0], [0, 255, 0], [255, 255, 0], [0, 0, 255], [255, 0, 255], [0, 255, 255], [255, 255, 255]];
     // We set min_error initially to 442 because that's higher than the highest
     // possible value it could have: the error between the colors (0, 0, 0) and
     // (255, 255, 255) is only 441.67.
