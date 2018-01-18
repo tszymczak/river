@@ -25,8 +25,6 @@ use termion::color;
 extern crate clap;
 use clap::{App, Arg};
 
-
-
 fn main() {
     // Parse command line input.
     let matches = App::new("River")
@@ -62,35 +60,70 @@ fn main() {
     }
 
     // Determine the width of the terminal. Use the dimensions specified by the
-    // user or detect the width of the terminal.
+    // user or detect the width of the terminal. Messy but does what I want for
+    // now.
+    let (default_x, default_y) = (80, 24);
     let x: u32;
     let y: u32;
-    let (det_x, det_y) = get_dimensions();
+    let det_x: u32;
+    let det_y: u32;
 
-    if matches.is_present("height") {
-        match matches.value_of("height").unwrap().parse::<u32>() {
-            Ok(n) => y = n,
-            Err(e) => {
-                eprintln!("Invalid value `{}' for terminal height.", matches.value_of("height").unwrap());
-                y = det_y;
-            },
-        }
+    let term_result = termion::terminal_size();
+    let ok;
+    if term_result.is_ok() {
+        let (a, b) = term_result.unwrap();
+        det_x = a as u32;
+        det_y = b as u32;
+        ok = true;
     } else {
-        y = det_y;
+        det_x = 0;
+        det_y = 0;
+        ok = false;
     }
 
     if matches.is_present("width") {
         match matches.value_of("width").unwrap().parse::<u32>() {
             Ok(n) => x = n,
             Err(e) => {
-                eprintln!("Invalid value `{}' for terminal width.", matches.value_of("width").unwrap());
-                x = det_x;
+                eprintln!("Invalid value `{}' for terminal width, attempting to autodetect.", matches.value_of("width").unwrap());
+                if ok {
+                    x = det_x;
+                } else {
+                    eprintln!("Warning: Can't autodetect terminal width, assuming {}.", default_x);
+                    x = default_x;
+                }
             },
         }
     } else {
-        x = det_x;
+        if ok {
+            x = det_x;
+        } else {
+            eprintln!("Warning: Can't autodetect terminal width, assuming {}.", default_x);
+            x = default_x;
+        }
     }
 
+    if matches.is_present("height") {
+        match matches.value_of("height").unwrap().parse::<u32>() {
+            Ok(n) => y = n,
+            Err(e) => {
+                eprintln!("Invalid value `{}' for terminal height, attempting to autodetect.", matches.value_of("height").unwrap());
+                if ok {
+                    y = det_y;
+                } else {
+                    eprintln!("Warning: Can't autodetect terminal height, assuming {}.", default_y);
+                    y = default_y;
+                }
+            },
+        }
+    } else {
+        if ok {
+            y = det_y;
+        } else {
+            eprintln!("Warning: Can't autodetect terminal height, assuming {}.", default_y);
+            y = default_y;
+        }
+    }
 
     // Handle mode inputs. If the user doesn't specify a mode, default to
     // ascii.
@@ -102,22 +135,6 @@ fn main() {
 
     // Render the image to the terminal.
     render(img, mode);
-}
-
-// Get the dimensions of the current terminal, in characters. Returns a tuple
-// containing the width of the terminal, then the height.
-fn get_dimensions() -> (u32, u32) {
-    // If we can't get the size of the terminal, use 80x24 as a sane default.
-    // This actually happens when we redirect the program's output.
-    let (default_x, default_y) = (80, 24);
-    let term_result = termion::terminal_size();
-    if term_result.is_ok() {
-        let (x, y) = term_result.unwrap();
-        return (x as u32, y as u32);
-    } else {
-        eprintln!("Warning: Can't autodetect terminal dimensions, assuming {} by {}. If you're overriding the automatic size, ignore this warning.", default_x, default_y);
-        return (default_x, default_y);
-    }
 }
 
 // Resize an image for display in the terminal, based on the aspect ratio
