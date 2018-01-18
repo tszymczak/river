@@ -28,7 +28,7 @@ use clap::{App, Arg};
 fn main() {
     // Parse command line input.
     let matches = App::new("River")
-        .version("0.2")
+        .version("0.3.0")
         .about("Print images in the Terminal using text characters.")
         .author("Thomas Szymczak")
         .arg(Arg::with_name("INPUT")
@@ -47,6 +47,10 @@ fn main() {
         .arg(Arg::with_name("width")
             .help("Manually set the width of the terminal in rows.")
             .short("x")
+            .takes_value(true))
+        .arg(Arg::with_name("ratio")
+            .help("Set the aspect ratio (width divided by height) of the terminal's characters.")
+            .short("r")
             .takes_value(true))
         .get_matches();
 
@@ -126,12 +130,28 @@ fn main() {
     }
 
     // Handle mode inputs. If the user doesn't specify a mode, default to
-    // ascii.
+    // ascii. Invalid values are handles by the library that handles arguments.
     let mode = matches.value_of("mode").unwrap_or("ascii");
+
+    // Get the aspect ratio. If not specified by the user, 0.5 is a reasonable
+    // default.
+    let ratio: f32;
+    let default_ratio: f32 = 0.5;
+    if matches.is_present("ratio") {
+        match matches.value_of("ratio").unwrap().parse::<f32>() {
+            Ok(n) => ratio = n,
+            Err(e) => {
+                eprintln!("Invalid value `{}' for aspect ratio, defaulting to {}.", matches.value_of("ratio").unwrap(), default_ratio);
+                ratio = default_ratio;
+            },
+        }
+    } else {
+        ratio = default_ratio;
+    }
 
     // Open the input image file and resize it.
     let inimg = image::open(&Path::new(&infile_name)).ok().expect("Opening image failed");
-    let img = resize(inimg, x, y);
+    let img = resize(inimg, x, y, ratio);
 
     // Render the image to the terminal.
     render(img, mode);
@@ -139,11 +159,10 @@ fn main() {
 
 // Resize an image for display in the terminal, based on the aspect ratio
 // (width/height) of the terminal characters and the maximum size.
-fn resize(inimg: image::DynamicImage, x: u32, y: u32) -> image::DynamicImage {
+fn resize(inimg: image::DynamicImage, x: u32, y: u32, aspect: f32) -> image::DynamicImage {
     // This is the aspect ratio of each terminal character, equal to its width
     // divided by its height. This value is a good approximation for GNOME
     // Terminal on Linux but other platforms have different values.
-    let aspect = 0.5;
     // Resize to fit a standard 80x24 terminal.
     let xmax: u32 = x;
     let ymax: u32 = y;
