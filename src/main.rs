@@ -336,7 +336,7 @@ fn quantize_8color(red: u8, green: u8, blue:u8) -> u8 {
 // colors. The elements in the inner arrays are red, green, blue. The color
 // values here are the values used in xterm (According to
 // https://jonasjacek.github.io/colors/ ) but are a reasonable approximation
-// for terminal in general.
+// for terminals in general.
 let palette: [[u8; 3]; 8] = [[0, 0, 0], [128, 0, 0], [0, 128, 0], [128, 128, 0], [0, 0, 128], [128, 0, 128], [0, 128, 128], [192, 192, 192]];
     // We set min_error initially to 442 because that's higher than the highest
     // possible value it could have: the error between the colors (0, 0, 0) and
@@ -398,7 +398,7 @@ fn quantize_16color(red: u8, green: u8, blue:u8) -> u8 {
 // colors. The elements in the inner arrays are red, green, blue. The color
 // values here are the values used in xterm (According to
 // https://jonasjacek.github.io/colors/ ) but are a reasonable approximation
-// for terminal in general.
+// for terminals in general.
 let palette: [[u8; 3]; 16] = [[0, 0, 0], [128, 0, 0], [0, 128, 0], [128, 128, 0], [0, 0, 128], [128, 0, 128], [0, 128, 128], [192, 192, 192], [128, 128, 128], [255, 0, 0], [0, 255, 0], [255, 255, 0], [0, 0, 255], [255, 0, 255], [0, 255, 255], [255, 255, 255]];
     // We set min_error initially to 442 because that's higher than the highest
     // possible value it could have: the error between the colors (0, 0, 0) and
