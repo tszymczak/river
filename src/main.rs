@@ -78,7 +78,7 @@ fn main() {
     if matches.is_present("ratio") {
         match matches.value_of("ratio").unwrap().parse::<f32>() {
             Ok(n) => ratio = n,
-            Err(e) => {
+            Err(_) => {
                 eprintln!("Invalid value `{}' for aspect ratio, defaulting to {}.", matches.value_of("ratio").unwrap(), default_ratio);
                 ratio = default_ratio;
             },
@@ -122,7 +122,7 @@ fn choose_dimensions(matches: &clap::ArgMatches) -> (u32, u32) {
     if matches.is_present("width") {
         match matches.value_of("width").unwrap().parse::<u32>() {
             Ok(n) => x = n,
-            Err(e) => {
+            Err(_) => {
                 eprintln!("Invalid value `{}' for terminal width, attempting to autodetect.", matches.value_of("width").unwrap());
                 if ok {
                     x = det_x;
@@ -144,7 +144,7 @@ fn choose_dimensions(matches: &clap::ArgMatches) -> (u32, u32) {
     if matches.is_present("height") {
         match matches.value_of("height").unwrap().parse::<u32>() {
             Ok(n) => y = n,
-            Err(e) => {
+            Err(_) => {
                 eprintln!("Invalid value `{}' for terminal height, attempting to autodetect.", matches.value_of("height").unwrap());
                 if ok {
                     y = det_y;
