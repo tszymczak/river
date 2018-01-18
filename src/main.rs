@@ -63,10 +63,44 @@ fn main() {
         process::exit(1);
     }
 
-    // Determine the width of the terminal. Use the dimensions specified by the
-    // user or detect the width of the terminal. Messy but does what I want for
-    // now.
-    let (default_x, default_y) = (80, 24);
+    // Get the dimensions of the terminal window. The code is rather lenghty
+    // so it has its own method.
+    let (x, y): (u32, u32) = choose_dimensions(&matches);
+
+    // Handle mode inputs. If the user doesn't specify a mode, default to
+    // ascii. Invalid values are handles by the library that handles arguments.
+    let mode = matches.value_of("mode").unwrap_or("ascii");
+
+    // Get the aspect ratio. If not specified by the user, 0.5 is a reasonable
+    // default.
+    let ratio: f32;
+    let default_ratio: f32 = 0.5;
+    if matches.is_present("ratio") {
+        match matches.value_of("ratio").unwrap().parse::<f32>() {
+            Ok(n) => ratio = n,
+            Err(e) => {
+                eprintln!("Invalid value `{}' for aspect ratio, defaulting to {}.", matches.value_of("ratio").unwrap(), default_ratio);
+                ratio = default_ratio;
+            },
+        }
+    } else {
+        ratio = default_ratio;
+    }
+
+    // Open the input image file and resize it.
+    let inimg = image::open(&Path::new(&infile_name)).ok().expect("Opening image failed");
+    let img = resize(inimg, x, y, ratio);
+
+    // Render the image to the terminal.
+    render(img, mode);
+}
+
+// Determine the dimensions to print the image with, based on the arguments
+// given, the size of the terimanl, and the default size if all else fails.
+fn choose_dimensions(matches: &clap::ArgMatches) -> (u32, u32) {
+    // Somewhat messy but does what I want. Definitely some technical debt in
+    // here.
+    let (default_x, default_y): (u32, u32) = (80, 24);
     let x: u32;
     let y: u32;
     let det_x: u32;
@@ -129,32 +163,7 @@ fn main() {
         }
     }
 
-    // Handle mode inputs. If the user doesn't specify a mode, default to
-    // ascii. Invalid values are handles by the library that handles arguments.
-    let mode = matches.value_of("mode").unwrap_or("ascii");
-
-    // Get the aspect ratio. If not specified by the user, 0.5 is a reasonable
-    // default.
-    let ratio: f32;
-    let default_ratio: f32 = 0.5;
-    if matches.is_present("ratio") {
-        match matches.value_of("ratio").unwrap().parse::<f32>() {
-            Ok(n) => ratio = n,
-            Err(e) => {
-                eprintln!("Invalid value `{}' for aspect ratio, defaulting to {}.", matches.value_of("ratio").unwrap(), default_ratio);
-                ratio = default_ratio;
-            },
-        }
-    } else {
-        ratio = default_ratio;
-    }
-
-    // Open the input image file and resize it.
-    let inimg = image::open(&Path::new(&infile_name)).ok().expect("Opening image failed");
-    let img = resize(inimg, x, y, ratio);
-
-    // Render the image to the terminal.
-    render(img, mode);
+    return (x, y);
 }
 
 // Resize an image for display in the terminal, based on the aspect ratio
