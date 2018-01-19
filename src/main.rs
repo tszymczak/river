@@ -17,13 +17,15 @@
 
 use std::path::Path;
 use std::process;
-use std::{f32, i32};
+use std::f32;
 extern crate image;
-use image::{GenericImage, Pixel, FilterType};
+use image::{GenericImage, FilterType};
 extern crate termion;
 use termion::color;
 extern crate clap;
 use clap::{App, Arg};
+extern crate exoquant;
+use exoquant::*;
 
 fn main() {
     // Parse command line input.
@@ -233,15 +235,29 @@ fn render(img: image::DynamicImage, mode: &str) {
 
 // Display an image in the terminal by printing an array of spaces and pounds.
 fn render_pound(img: image::DynamicImage) {
+    let palette = vec![
+        Color { r: 0, g: 0, b: 0, a: 255 },
+        Color { r: 255, g: 255, b: 255, a: 255 },
+    ];
+
     let (width, height) = img.dimensions();
+
+    // Convert image into a format exoquant can understand.
+    let exo_img = image_to_exoquant(img);
+
+    // Use exoquant to quantize the image according to our palette.
+    let colorspace = SimpleColorSpace::default();
+    let ditherer = ditherer::None;
+    let remapper = Remapper::new(&palette, &colorspace, &ditherer);
+    let quant_img = remapper.remap(&exo_img, width as usize);
+
     for y in 0..height {
         for x in 0..width {
-            // Get the brightness level of the pixel.
-            let luma = img.get_pixel(x, y).to_luma().data[0];
-            if luma < 128 {
-                print!("#");
-            } else {
-                print!(" ");
+            let pixel_color = quant_img[(width*y + x) as usize];
+            match pixel_color {
+                0 => print!("#"),
+                1 => print!(" "),
+                _ => print!(" "),
             }
         }
         println!();
@@ -250,27 +266,42 @@ fn render_pound(img: image::DynamicImage) {
 
 // Display an image using an ASCII art style.
 fn render_ascii(img: image::DynamicImage) {
+    let palette = vec![
+        Color { r: 0, g: 0, b: 0, a: 255 },
+        Color { r: 32, g: 32, b: 32, a: 255 },
+        Color { r: 64, g: 64, b: 64, a: 255 },
+        Color { r: 96, g: 96, b: 96, a: 255 },
+        Color { r: 128, g: 128, b: 128, a: 255 },
+        Color { r: 160, g: 160, b: 160, a: 255 },
+        Color { r: 192, g: 192, b: 192, a: 255 },
+        Color { r: 224, g: 224, b: 224, a: 255 },
+        Color { r: 255, g: 255, b: 255, a: 255 },
+     ];
+
     let (width, height) = img.dimensions();
+
+    // Convert image into a format exoquant can understand.
+    let exo_img = image_to_exoquant(img);
+
+    // Use exoquant to quantize the image according to our palette.
+    let colorspace = SimpleColorSpace::default();
+    let ditherer = ditherer::None;
+    let remapper = Remapper::new(&palette, &colorspace, &ditherer);
+    let quant_img = remapper.remap(&exo_img, width as usize);
+
     for y in 0..height {
         for x in 0..width {
-            // Get the brightness level of the pixel.
-            let luma = img.get_pixel(x, y).to_luma().data[0];
-            if luma < 32 {
-                print!("W");
-            } else if luma < 64 {
-                print!("O");
-            } else if luma < 96 {
-                print!("L");
-            } else if luma < 128 {
-                print!(";");
-            } else if luma < 160 {
-                print!(":");
-            } else if luma < 192 {
-                print!("'");
-            } else if luma < 224 {
-                print!("-");
-            } else {
-                print!(" ");
+            let pixel_color = quant_img[(width*y + x) as usize];
+            match pixel_color {
+                0 => print!("W"),
+                1 => print!("O"),
+                2 => print!("L"),
+                3 => print!(";"),
+                4 => print!(":"),
+                5 => print!("'"),
+                6 => print!("-"),
+                7 => print!(" "),
+                _ => print!(" "),
             }
         }
         println!();
@@ -280,21 +311,35 @@ fn render_ascii(img: image::DynamicImage) {
 
 // Display an image using an ASCII art style.
 fn render_asciisimple(img: image::DynamicImage) {
+    let palette = vec![
+        Color { r: 0, g: 0, b: 0, a: 255 },
+        Color { r: 64, g: 64, b: 64, a: 255 },
+        Color { r: 128, g: 128, b: 128, a: 255 },
+        Color { r: 160, g: 160, b: 160, a: 255 },
+        Color { r: 255, g: 255, b: 255, a: 255 },
+     ];
+
     let (width, height) = img.dimensions();
+
+    // Convert image into a format exoquant can understand.
+    let exo_img = image_to_exoquant(img);
+
+    // Use exoquant to quantize the image according to our palette.
+    let colorspace = SimpleColorSpace::default();
+    let ditherer = ditherer::None;
+    let remapper = Remapper::new(&palette, &colorspace, &ditherer);
+    let quant_img = remapper.remap(&exo_img, width as usize);
+
     for y in 0..height {
         for x in 0..width {
-            // Get the brightness level of the pixel.
-            let luma = img.get_pixel(x, y).to_luma().data[0];
-            if luma < 32 {
-                print!("W");
-            } else if luma < 64 {
-                print!("O");
-            } else if luma < 128 {
-                print!("o");
-            } else if luma < 192 {
-                print!(":");
-            } else {
-                print!(" ");
+            let pixel_color = quant_img[(width*y + x) as usize];
+            match pixel_color {
+                0 => print!("W"),
+                1 => print!("O"),
+                2 => print!("o"),
+                3 => print!(":"),
+                4 => print!(" "),
+                _ => print!(" "),
             }
         }
         println!();
@@ -303,14 +348,47 @@ fn render_asciisimple(img: image::DynamicImage) {
 
 // Display an image using ANSI color.
 fn render_8color(img: image::DynamicImage) {
+    // This array is the palette of color values for the eight basic terminal
+    // colors. In terms of data types, it's an array of exoquant::Color
+    // structs. These values the values used in xterm (According to
+    // https://jonasjacek.github.io/colors/ ) but are a reasonable
+    // approximation for terminals in general.
+    let palette = vec![
+        Color { r: 0, g: 0, b: 0, a: 255 },
+        Color { r: 128, g: 0, b: 0, a: 255 },
+        Color { r: 0, g: 128, b: 0, a: 255 },
+        Color { r: 128, g: 128, b: 0, a: 255 },
+        Color { r: 0, g: 0, b: 128, a: 255 },
+        Color { r: 128, g: 0, b: 128, a: 255 },
+        Color { r: 0, g: 128, b: 128, a: 255 },
+        Color { r: 192, g: 192, b: 192, a: 255 },
+    ];
+
     let (width, height) = img.dimensions();
+
+    // Convert image into a format exoquant can understand.
+    let img_vec = image_to_exoquant(img);
+
+    // Use exoquant to quantize the image according to our palette.
+    let colorspace = SimpleColorSpace::default();
+    // TODO: Make it possible to choose the dithering, choose a reasonable
+    // default.
+    let ditherer = ditherer::None;
+    let remapper = Remapper::new(&palette, &colorspace, &ditherer);
+    let indexed_data = remapper.remap(&img_vec, width as usize);
+
+// Debug code: Print the color values of the palette.
+/*
+    for i in 0..palette.len() {
+        let color = palette[i];
+        println!("{} {} {} {}", color.r, color.g, color.b, color.a);
+    }
+*/
+
     for y in 0..height {
         for x in 0..width {
-            // Get the red, green, and blue channels of the pixel and send them
-            // to the quantize function.
-            let channels = img.get_pixel(x, y).data;
-            let best_color = quantize_8color(channels[0], channels[1], channels[2]);
-            match best_color {
+            let pixel_color = indexed_data[(width*y + x) as usize];
+            match pixel_color {
                 0 => print!("{} ", color::Bg(color::Black)),
                 1 => print!("{} ", color::Bg(color::Red)),
                 2 => print!("{} ", color::Bg(color::Green)),
@@ -331,40 +409,50 @@ fn render_8color(img: image::DynamicImage) {
     }
 }
 
-fn quantize_8color(red: u8, green: u8, blue:u8) -> u8 {
-// This array is the palette of color values for the eight basic terminal
-// colors. The elements in the inner arrays are red, green, blue. The color
-// values here are the values used in xterm (According to
-// https://jonasjacek.github.io/colors/ ) but are a reasonable approximation
-// for terminals in general.
-let palette: [[u8; 3]; 8] = [[0, 0, 0], [128, 0, 0], [0, 128, 0], [128, 128, 0], [0, 0, 128], [128, 0, 128], [0, 128, 128], [192, 192, 192]];
-    // We set min_error initially to 442 because that's higher than the highest
-    // possible value it could have: the error between the colors (0, 0, 0) and
-    // (255, 255, 255) is only 441.67.
-    let mut best_error = 442.0;
-    let mut best_color: u8 = 0;
-    for i in 0..palette.len() {
-        // Calculate the Euclidean distance from the palette color to the
-        // actual color of the pixel.
-        let error = f32::sqrt( ((red as i32 - palette[i][0] as i32).pow(2) + (green as i32 - palette[i][1] as i32).pow(2) + (blue as i32 - palette[i][2] as i32).pow(2)) as f32 );
-        if error < best_error {
-            best_error = error;
-            best_color = i as u8;
-        }
-    }
-    return best_color;
-}
-
 // Display an image using ANSI color.
 fn render_16color(img: image::DynamicImage) {
+    // This array is the palette of color values for the 16 basic terminal
+    // colors. In terms of data types, it's an array of exoquant::Color
+    // structs. These values the values used in xterm (According to
+    // https://jonasjacek.github.io/colors/ ) but are a reasonable
+    // approximation for terminals in general.
+    let palette = vec![
+        Color { r: 0, g: 0, b: 0, a: 255 },
+        Color { r: 128, g: 0, b: 0, a: 255 },
+        Color { r: 0, g: 128, b: 0, a: 255 },
+        Color { r: 128, g: 128, b: 0, a: 255 },
+        Color { r: 0, g: 0, b: 128, a: 255 },
+        Color { r: 128, g: 0, b: 128, a: 255 },
+        Color { r: 0, g: 128, b: 128, a: 255 },
+        Color { r: 192, g: 192, b: 192, a: 255 },
+        Color { r: 128, g: 128, b: 128, a: 255 },
+        Color { r: 255, g: 0, b: 0, a: 255 },
+        Color { r: 0, g: 255, b: 0, a: 255 },
+        Color { r: 255, g: 255, b: 0, a: 255 },
+        Color { r: 0, g: 0, b: 255, a: 255 },
+        Color { r: 255, g: 0, b: 255, a: 255 },
+        Color { r: 0, g: 255, b: 255, a: 255 },
+        Color { r: 255, g: 255, b: 255, a: 255 },
+    ];
+
     let (width, height) = img.dimensions();
+
+    // Convert image into a format exoquant can understand.
+    let img_vec = image_to_exoquant(img);
+
+    // Use exoquant to quantize the image according to our palette.
+    let colorspace = SimpleColorSpace::default();
+    let ditherer = ditherer::None;
+    let remapper = Remapper::new(&palette, &colorspace, &ditherer);
+    let indexed_data = remapper.remap(&img_vec, width as usize);
+
+
     for y in 0..height {
         for x in 0..width {
             // Get the red, green, and blue channels of the pixel and send them
             // to the quantize function.
-            let channels = img.get_pixel(x, y).data;
-            let best_color = quantize_16color(channels[0], channels[1], channels[2]);
-            match best_color {
+            let pixel_color = indexed_data[(width*y + x) as usize];
+            match pixel_color {
                 0 => print!("{} ", color::Bg(color::Black)),
                 1 => print!("{} ", color::Bg(color::Red)),
                 2 => print!("{} ", color::Bg(color::Green)),
@@ -393,26 +481,21 @@ fn render_16color(img: image::DynamicImage) {
     }
 }
 
-fn quantize_16color(red: u8, green: u8, blue:u8) -> u8 {
-// This array is the palette of color values for the eight basic terminal
-// colors. The elements in the inner arrays are red, green, blue. The color
-// values here are the values used in xterm (According to
-// https://jonasjacek.github.io/colors/ ) but are a reasonable approximation
-// for terminals in general.
-let palette: [[u8; 3]; 16] = [[0, 0, 0], [128, 0, 0], [0, 128, 0], [128, 128, 0], [0, 0, 128], [128, 0, 128], [0, 128, 128], [192, 192, 192], [128, 128, 128], [255, 0, 0], [0, 255, 0], [255, 255, 0], [0, 0, 255], [255, 0, 255], [0, 255, 255], [255, 255, 255]];
-    // We set min_error initially to 442 because that's higher than the highest
-    // possible value it could have: the error between the colors (0, 0, 0) and
-    // (255, 255, 255) is only 441.67.
-    let mut best_error = 442.0;
-    let mut best_color: u8 = 0;
-    for i in 0..palette.len() {
-        // Calculate the Euclidean distance from the palette color to the
-        // actual color of the pixel.
-        let error = f32::sqrt( ((red as i32 - palette[i][0] as i32).pow(2) + (green as i32 - palette[i][1] as i32).pow(2) + (blue as i32 - palette[i][2] as i32).pow(2)) as f32 );
-        if error < best_error {
-            best_error = error;
-            best_color = i as u8;
+// Convert an image from the image libary's format into the format exoquant
+// uses.
+fn image_to_exoquant(input: image::DynamicImage) -> Vec<Color> {
+    let (width, height) = input.dimensions();
+    let mut img_vec: Vec<Color> = Vec::new();
+
+    for y in 0..height {
+        for x in 0..width {
+            let channels = input.get_pixel(x, y).data;
+            let new_color: Color = Color { r: channels[0], g: channels[1], b: channels[2], a: channels[3] };
+            img_vec.push(new_color);
         }
     }
-    return best_color;
+
+    return img_vec;
 }
+
+

@@ -7,3 +7,4 @@ authors = ["thomas"]
 image = "*"
 clap = "*"
 termion = "*"
+exoquant = "*"
