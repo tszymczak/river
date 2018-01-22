@@ -41,7 +41,7 @@ fn main() {
             .help("What visual style to use when printing the image.")
             .short("m")
             .takes_value(true)
-            .possible_values(&["pound", "ascii", "ascii-simple", "8colors", "16colors"]))
+            .possible_values(&["pound", "ascii", "ascii-simple", "8colors", "16colors", "256colors"]))
         .arg(Arg::with_name("height")
             .help("Manually set the height of the terminal in columns.")
             .short("y")
@@ -227,6 +227,8 @@ fn render(img: image::DynamicImage, mode: &str) {
         render_8colors(img);
     } else if mode == "16colors" {
         render_16colors(img);
+    } else if mode == "256colors" {
+        render_256colors(img);
     } else {
         println!("Invalid rendering mode {}. This is a programmer error.", mode);
         process::exit(1);
@@ -377,14 +379,6 @@ fn render_8colors(img: image::DynamicImage) {
     let remapper = Remapper::new(&palette, &colorspace, &ditherer);
     let indexed_data = remapper.remap(&img_vec, width as usize);
 
-// Debug code: Print the color values of the palette.
-/*
-    for i in 0..palette.len() {
-        let color = palette[i];
-        println!("{} {} {} {}", color.r, color.g, color.b, color.a);
-    }
-*/
-
     for y in 0..height {
         for x in 0..width {
             let pixel_color = indexed_data[(width*y + x) as usize];
@@ -481,6 +475,74 @@ fn render_16colors(img: image::DynamicImage) {
     }
 }
 
+fn render_256colors(img: image::DynamicImage) {
+    let palette = generate_256colors_palette();
+
+    let (width, height) = img.dimensions();
+
+    // Convert image into a format exoquant can understand.
+    let img_vec = image_to_exoquant(img);
+
+    // Use exoquant to quantize the image according to our palette.
+    let colorspace = SimpleColorSpace::default();
+    let ditherer = ditherer::None;
+    let remapper = Remapper::new(&palette, &colorspace, &ditherer);
+    let indexed_data = remapper.remap(&img_vec, width as usize);
+
+    for y in 0..height {
+        for x in 0..width {
+            let pixel_color = indexed_data[(width*y + x) as usize];
+            print!("{} ", color::Bg(color::AnsiValue(pixel_color)));
+        }
+        // Reset colors at the end of each line. If we don't do this, the
+        // color of the rightmost pixel in each line is extended to the right
+        // edge of the screen.
+        println!("{}", color::Bg(color::Reset));
+    }
+}
+
+// Generate the palette of colors used for the 256 color mode. We can do this because
+// the palette is fairly regular.
+fn generate_256colors_palette() -> Vec<Color> {
+    // Add the first 16 colors.
+    let mut palette = vec![
+        Color { r: 0, g: 0, b: 0, a: 255 },
+        Color { r: 128, g: 0, b: 0, a: 255 },
+        Color { r: 0, g: 128, b: 0, a: 255 },
+        Color { r: 128, g: 128, b: 0, a: 255 },
+        Color { r: 0, g: 0, b: 128, a: 255 },
+        Color { r: 128, g: 0, b: 128, a: 255 },
+        Color { r: 0, g: 128, b: 128, a: 255 },
+        Color { r: 192, g: 192, b: 192, a: 255 },
+        Color { r: 128, g: 128, b: 128, a: 255 },
+        Color { r: 255, g: 0, b: 0, a: 255 },
+        Color { r: 0, g: 255, b: 0, a: 255 },
+        Color { r: 255, g: 255, b: 0, a: 255 },
+        Color { r: 0, g: 0, b: 255, a: 255 },
+        Color { r: 255, g: 0, b: 255, a: 255 },
+        Color { r: 0, g: 255, b: 255, a: 255 },
+        Color { r: 255, g: 255, b: 255, a: 255 },
+    ];
+    
+    // Add the next 216 colors, which are the RGB colors.
+    let channel_vals = vec![ 0, 95, 135, 175, 215, 255 ];
+    for r in 0..channel_vals.len() {
+        for g in 0..channel_vals.len() {
+            for b in 0..channel_vals.len() {
+                palette.push(Color{ r: channel_vals[r], g: channel_vals[g], b: channel_vals[b], a: 255 });
+            }
+        }
+    }
+    
+    // Finally, add the 24 grayscale colors.
+    for i in 0..24 {
+        let x = 10*i + 8;
+        palette.push(Color{ r: x, g: x, b: x, a: 255 });
+    }
+    
+    return palette;
+}
+
 // Convert an image from the image libary's format into the format exoquant
 // uses.
 fn image_to_exoquant(input: image::DynamicImage) -> Vec<Color> {
@@ -498,4 +560,10 @@ fn image_to_exoquant(input: image::DynamicImage) -> Vec<Color> {
     return img_vec;
 }
 
-
+// Debug code: Print the color values of the palette.
+fn print_palette(palette: &Vec<Color>) {
+    for i in 0..palette.len() {
+        let color = palette[i];
+        println!("{} {} {} {}", color.r, color.g, color.b, color.a);
+    }
+}
