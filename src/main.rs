@@ -41,7 +41,7 @@ fn main() {
             .help("What visual style to use when printing the image.")
             .short("m")
             .takes_value(true)
-            .possible_values(&["pound", "ascii", "ascii-simple", "8colors", "16colors", "256colors"]))
+            .possible_values(&["pound", "ascii", "ascii-simple", "8colors", "16colors", "256colors", "truecolor"]))
         .arg(Arg::with_name("height")
             .help("Manually set the height of the terminal in columns.")
             .short("y")
@@ -225,6 +225,8 @@ fn render(img: image::DynamicImage, mode: &str) {
         render_16colors(img);
     } else if mode == "256colors" {
         render_256colors(img);
+    } else if mode == "truecolor" {
+        render_truecolor(img);
     } else {
         println!("Invalid rendering mode {}. This is a programmer error.", mode);
         process::exit(1);
@@ -544,6 +546,26 @@ fn generate_256colors_palette() -> Vec<Color> {
     }
     
     return palette;
+}
+
+// Render an image in truecolor, i.e. 24-bit color.
+fn render_truecolor(img: image::DynamicImage) {
+    let (width, height) = img.dimensions();
+
+    for y in 0..height {
+        for x in 0..width {
+            // Get the rgb values of the pixel.
+            let pixel_channels = img.get_pixel(x, y).data;
+            let red = pixel_channels[0];
+            let green = pixel_channels[1];
+            let blue = pixel_channels[2];
+            print!("{} ", color::Bg(color::Rgb(red, green, blue)));
+        }
+        // Reset colors at the end of each line. If we don't do this, the
+        // color of the rightmost pixel in each line is extended to the right
+        // edge of the screen.
+        println!("{}", color::Bg(color::Reset));        
+    }
 }
 
 // Convert an image from the image libary's format into the format exoquant
