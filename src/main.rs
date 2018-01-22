@@ -70,7 +70,7 @@ fn main() {
     let (x, y): (u32, u32) = choose_dimensions(&matches);
 
     // Handle mode inputs. If the user doesn't specify a mode, default to
-    // ascii. Invalid values are handles by the library that handles arguments.
+    // ascii. Invalid values are handled by the library that handles arguments.
     let mode = matches.value_of("mode").unwrap_or("ascii");
 
     // Get the aspect ratio. If not specified by the user, 0.5 is a reasonable
@@ -171,10 +171,6 @@ fn choose_dimensions(matches: &clap::ArgMatches) -> (u32, u32) {
 // Resize an image for display in the terminal, based on the aspect ratio
 // (width/height) of the terminal characters and the maximum size.
 fn resize(inimg: image::DynamicImage, x: u32, y: u32, aspect: f32) -> image::DynamicImage {
-    // This is the aspect ratio of each terminal character, equal to its width
-    // divided by its height. This value is a good approximation for GNOME
-    // Terminal on Linux but other platforms have different values.
-    // Resize to fit a standard 80x24 terminal.
     let xmax: u32 = x;
     let ymax: u32 = y;
     let (width, height) = inimg.dimensions();
@@ -311,7 +307,8 @@ fn render_ascii(img: image::DynamicImage) {
 }
 
 
-// Display an image using an ASCII art style.
+// Display an image using an ASCII art style that's somewhat simpler than the
+// regular one.
 fn render_ascii_simple(img: image::DynamicImage) {
     let palette = vec![
         Color { r: 0, g: 0, b: 0, a: 255 },
@@ -443,8 +440,6 @@ fn render_16colors(img: image::DynamicImage) {
 
     for y in 0..height {
         for x in 0..width {
-            // Get the red, green, and blue channels of the pixel and send them
-            // to the quantize function.
             let pixel_color = indexed_data[(width*y + x) as usize];
             match pixel_color {
                 0 => print!("{} ", color::Bg(color::Black)),
@@ -475,6 +470,7 @@ fn render_16colors(img: image::DynamicImage) {
     }
 }
 
+// Display images using 256 colors. Note that not all terminals can do this.
 fn render_256colors(img: image::DynamicImage) {
     let palette = generate_256colors_palette();
 
@@ -501,10 +497,11 @@ fn render_256colors(img: image::DynamicImage) {
     }
 }
 
-// Generate the palette of colors used for the 256 color mode. We can do this because
-// the palette is fairly regular.
+// Generate the palette of colors used for the 256 color mode. We could
+// hardcode this but it also makes sense to generate it because the palette is
+// large but fairly regular.
 fn generate_256colors_palette() -> Vec<Color> {
-    // Add the first 16 colors.
+    // Add the first 16 colors. These are the same as the 16 color mode.
     let mut palette = vec![
         Color { r: 0, g: 0, b: 0, a: 255 },
         Color { r: 128, g: 0, b: 0, a: 255 },
@@ -524,8 +521,12 @@ fn generate_256colors_palette() -> Vec<Color> {
         Color { r: 255, g: 255, b: 255, a: 255 },
     ];
     
-    // Add the next 216 colors, which are the RGB colors.
+    // Generate the next 216 colors, which are the RGB colors. These colors
+    // have a regular structure: there are 6 levels for each color channel, and
+    // we use every possible combination, so we get 6^3=216 colors.
+    // These are the values that each channel uses.
     let channel_vals = vec![ 0, 95, 135, 175, 215, 255 ];
+    // Iterate through every possibility and add it.
     for r in 0..channel_vals.len() {
         for g in 0..channel_vals.len() {
             for b in 0..channel_vals.len() {
@@ -534,7 +535,9 @@ fn generate_256colors_palette() -> Vec<Color> {
         }
     }
     
-    // Finally, add the 24 grayscale colors.
+    // Finally, add the 24 grayscale colors. Each shade of gray has all three
+    // color channels set to the same value, and for each color (starting at
+    // zero) this value is 10*i + 8.
     for i in 0..24 {
         let x = 10*i + 8;
         palette.push(Color{ r: x, g: x, b: x, a: 255 });
