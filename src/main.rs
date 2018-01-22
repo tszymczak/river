@@ -41,7 +41,7 @@ fn main() {
             .help("What visual style to use when printing the image.")
             .short("m")
             .takes_value(true)
-            .possible_values(&["pound", "ascii", "asciisimple", "8color", "16color"]))
+            .possible_values(&["pound", "ascii", "ascii-simple", "8colors", "16colors"]))
         .arg(Arg::with_name("height")
             .help("Manually set the height of the terminal in columns.")
             .short("y")
@@ -221,12 +221,12 @@ fn render(img: image::DynamicImage, mode: &str) {
         render_pound(img);
     } else if mode == "ascii" {
         render_ascii(img);
-    } else if mode == "asciisimple" {
-        render_asciisimple(img);
-    } else if mode == "8color" {
-        render_8color(img);
-    } else if mode == "16color" {
-        render_16color(img);
+    } else if mode == "ascii-simple" {
+        render_ascii_simple(img);
+    } else if mode == "8colors" {
+        render_8colors(img);
+    } else if mode == "16colors" {
+        render_16colors(img);
     } else {
         println!("Invalid rendering mode {}. This is a programmer error.", mode);
         process::exit(1);
@@ -310,7 +310,7 @@ fn render_ascii(img: image::DynamicImage) {
 
 
 // Display an image using an ASCII art style.
-fn render_asciisimple(img: image::DynamicImage) {
+fn render_ascii_simple(img: image::DynamicImage) {
     let palette = vec![
         Color { r: 0, g: 0, b: 0, a: 255 },
         Color { r: 64, g: 64, b: 64, a: 255 },
@@ -347,7 +347,7 @@ fn render_asciisimple(img: image::DynamicImage) {
 }
 
 // Display an image using ANSI color.
-fn render_8color(img: image::DynamicImage) {
+fn render_8colors(img: image::DynamicImage) {
     // This array is the palette of color values for the eight basic terminal
     // colors. In terms of data types, it's an array of exoquant::Color
     // structs. These values the values used in xterm (According to
@@ -410,7 +410,7 @@ fn render_8color(img: image::DynamicImage) {
 }
 
 // Display an image using ANSI color.
-fn render_16color(img: image::DynamicImage) {
+fn render_16colors(img: image::DynamicImage) {
     // This array is the palette of color values for the 16 basic terminal
     // colors. In terms of data types, it's an array of exoquant::Color
     // structs. These values the values used in xterm (According to
