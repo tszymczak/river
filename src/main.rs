@@ -225,23 +225,15 @@ fn resize(inimg: image::DynamicImage, x: u32, y: u32, aspect: f32) -> image::Dyn
 // Print the input image file.
 fn render(img: image::DynamicImage, mode: &str, dither: &str) {
     // Pick the right rendering method based on what the user wants.
-    if mode == "pound" {
-        render_pound(img, dither);
-    } else if mode == "ascii" {
-        render_ascii(img, dither);
-    } else if mode == "ascii-simple" {
-        render_ascii_simple(img, dither);
-    } else if mode == "8colors" {
-        render_8colors(img, dither);
-    } else if mode == "16colors" {
-        render_16colors(img, dither);
-    } else if mode == "256colors" {
-        render_256colors(img, dither);
-    } else if mode == "truecolor" {
-        render_truecolor(img);
-    } else {
-        println!("Invalid rendering mode {}. This is a programmer error.", mode);
-        process::exit(1);
+    match mode {
+        "pound" => render_pound(img, dither),
+        "ascii" => render_ascii(img, dither),
+        "ascii-simple" => render_ascii_simple(img, dither),
+        "8colors" => render_8colors(img, dither),
+        "16colors" => render_16colors(img, dither),
+        "256colors" => render_256colors(img, dither),
+        "truecolor" => render_truecolor(img),
+        _ => render_ascii(img, dither),
     }
 }
 
