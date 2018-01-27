@@ -54,6 +54,12 @@ fn main() {
             .help("Set the aspect ratio (width divided by height) of the terminal's characters.")
             .short("r")
             .takes_value(true))
+        .arg(Arg::with_name("dither")
+            .help("Set the dithering mode to use.")
+            .short("d")
+            .takes_value(true)
+            .possible_values(&["none", "fs", "fs-vanilla", "fs-checkered", "ordered"])
+        )
         .get_matches();
 
     // Get the input file name. Crash if not specified.
@@ -88,13 +94,19 @@ fn main() {
     } else {
         ratio = default_ratio;
     }
+    
+    // Get the dither mode. If not specified by the user, Floyd-Steinberg is
+    // the default. The argument library handles invalid values so we don't
+    // have to worry about that.
+    let dither = matches.value_of("dither").unwrap_or("fs");
+    
 
     // Open the input image file and resize it.
     let inimg = image::open(&Path::new(&infile_name)).ok().expect("Opening image failed");
     let img = resize(inimg, x, y, ratio);
 
     // Render the image to the terminal.
-    render(img, mode);
+    render(img, mode, dither);
 }
 
 // Determine the dimensions to print the image with, based on the arguments
@@ -211,20 +223,20 @@ fn resize(inimg: image::DynamicImage, x: u32, y: u32, aspect: f32) -> image::Dyn
 }
 
 // Print the input image file.
-fn render(img: image::DynamicImage, mode: &str) {
+fn render(img: image::DynamicImage, mode: &str, dither: &str) {
     // Pick the right rendering method based on what the user wants.
     if mode == "pound" {
-        render_pound(img);
+        render_pound(img, dither);
     } else if mode == "ascii" {
-        render_ascii(img);
+        render_ascii(img, dither);
     } else if mode == "ascii-simple" {
-        render_ascii_simple(img);
+        render_ascii_simple(img, dither);
     } else if mode == "8colors" {
-        render_8colors(img);
+        render_8colors(img, dither);
     } else if mode == "16colors" {
-        render_16colors(img);
+        render_16colors(img, dither);
     } else if mode == "256colors" {
-        render_256colors(img);
+        render_256colors(img, dither);
     } else if mode == "truecolor" {
         render_truecolor(img);
     } else {
@@ -234,7 +246,7 @@ fn render(img: image::DynamicImage, mode: &str) {
 }
 
 // Display an image in the terminal by printing an array of spaces and pounds.
-fn render_pound(img: image::DynamicImage) {
+fn render_pound(img: image::DynamicImage, dither: &str) {
     let palette = vec![
         Color { r: 0, g: 0, b: 0, a: 255 },
         Color { r: 255, g: 255, b: 255, a: 255 },
@@ -242,14 +254,7 @@ fn render_pound(img: image::DynamicImage) {
 
     let (width, height) = img.dimensions();
 
-    // Convert image into a format exoquant can understand.
-    let exo_img = image_to_exoquant(img);
-
-    // Use exoquant to quantize the image according to our palette.
-    let colorspace = SimpleColorSpace::default();
-    let ditherer = ditherer::None;
-    let remapper = Remapper::new(&palette, &colorspace, &ditherer);
-    let quant_img = remapper.remap(&exo_img, width as usize);
+    let quant_img = quantize(img, &palette, dither);
 
     for y in 0..height {
         for x in 0..width {
@@ -265,7 +270,7 @@ fn render_pound(img: image::DynamicImage) {
 }
 
 // Display an image using an ASCII art style.
-fn render_ascii(img: image::DynamicImage) {
+fn render_ascii(img: image::DynamicImage, dither: &str) {
     let palette = vec![
         Color { r: 0, g: 0, b: 0, a: 255 },
         Color { r: 32, g: 32, b: 32, a: 255 },
@@ -280,14 +285,8 @@ fn render_ascii(img: image::DynamicImage) {
 
     let (width, height) = img.dimensions();
 
-    // Convert image into a format exoquant can understand.
-    let exo_img = image_to_exoquant(img);
+    let quant_img = quantize(img, &palette, dither);
 
-    // Use exoquant to quantize the image according to our palette.
-    let colorspace = SimpleColorSpace::default();
-    let ditherer = ditherer::None;
-    let remapper = Remapper::new(&palette, &colorspace, &ditherer);
-    let quant_img = remapper.remap(&exo_img, width as usize);
 
     for y in 0..height {
         for x in 0..width {
@@ -311,7 +310,7 @@ fn render_ascii(img: image::DynamicImage) {
 
 // Display an image using an ASCII art style that's somewhat simpler than the
 // regular one.
-fn render_ascii_simple(img: image::DynamicImage) {
+fn render_ascii_simple(img: image::DynamicImage, dither: &str) {
     let palette = vec![
         Color { r: 0, g: 0, b: 0, a: 255 },
         Color { r: 64, g: 64, b: 64, a: 255 },
@@ -322,14 +321,7 @@ fn render_ascii_simple(img: image::DynamicImage) {
 
     let (width, height) = img.dimensions();
 
-    // Convert image into a format exoquant can understand.
-    let exo_img = image_to_exoquant(img);
-
-    // Use exoquant to quantize the image according to our palette.
-    let colorspace = SimpleColorSpace::default();
-    let ditherer = ditherer::None;
-    let remapper = Remapper::new(&palette, &colorspace, &ditherer);
-    let quant_img = remapper.remap(&exo_img, width as usize);
+    let quant_img = quantize(img, &palette, dither);
 
     for y in 0..height {
         for x in 0..width {
@@ -348,7 +340,7 @@ fn render_ascii_simple(img: image::DynamicImage) {
 }
 
 // Display an image using ANSI color.
-fn render_8colors(img: image::DynamicImage) {
+fn render_8colors(img: image::DynamicImage, dither: &str) {
     // This array is the palette of color values for the eight basic terminal
     // colors. In terms of data types, it's an array of exoquant::Color
     // structs. These values the values used in xterm (According to
@@ -367,16 +359,7 @@ fn render_8colors(img: image::DynamicImage) {
 
     let (width, height) = img.dimensions();
 
-    // Convert image into a format exoquant can understand.
-    let img_vec = image_to_exoquant(img);
-
-    // Use exoquant to quantize the image according to our palette.
-    let colorspace = SimpleColorSpace::default();
-    // TODO: Make it possible to choose the dithering, choose a reasonable
-    // default.
-    let ditherer = ditherer::None;
-    let remapper = Remapper::new(&palette, &colorspace, &ditherer);
-    let indexed_data = remapper.remap(&img_vec, width as usize);
+    let indexed_data = quantize(img, &palette, dither);
 
     for y in 0..height {
         for x in 0..width {
@@ -403,7 +386,7 @@ fn render_8colors(img: image::DynamicImage) {
 }
 
 // Display an image using ANSI color.
-fn render_16colors(img: image::DynamicImage) {
+fn render_16colors(img: image::DynamicImage, dither: &str) {
     // This array is the palette of color values for the 16 basic terminal
     // colors. In terms of data types, it's an array of exoquant::Color
     // structs. These values the values used in xterm (According to
@@ -429,16 +412,8 @@ fn render_16colors(img: image::DynamicImage) {
     ];
 
     let (width, height) = img.dimensions();
-
-    // Convert image into a format exoquant can understand.
-    let img_vec = image_to_exoquant(img);
-
-    // Use exoquant to quantize the image according to our palette.
-    let colorspace = SimpleColorSpace::default();
-    let ditherer = ditherer::None;
-    let remapper = Remapper::new(&palette, &colorspace, &ditherer);
-    let indexed_data = remapper.remap(&img_vec, width as usize);
-
+    
+    let indexed_data = quantize(img, &palette, dither);
 
     for y in 0..height {
         for x in 0..width {
@@ -473,19 +448,12 @@ fn render_16colors(img: image::DynamicImage) {
 }
 
 // Display images using 256 colors. Note that not all terminals can do this.
-fn render_256colors(img: image::DynamicImage) {
+fn render_256colors(img: image::DynamicImage, dither: &str) {
     let palette = generate_256colors_palette();
 
     let (width, height) = img.dimensions();
 
-    // Convert image into a format exoquant can understand.
-    let img_vec = image_to_exoquant(img);
-
-    // Use exoquant to quantize the image according to our palette.
-    let colorspace = SimpleColorSpace::default();
-    let ditherer = ditherer::None;
-    let remapper = Remapper::new(&palette, &colorspace, &ditherer);
-    let indexed_data = remapper.remap(&img_vec, width as usize);
+    let indexed_data = quantize(img, &palette, dither);
 
     for y in 0..height {
         for x in 0..width {
@@ -568,6 +536,55 @@ fn render_truecolor(img: image::DynamicImage) {
     }
 }
 
+// Quantize an image given the image, the palette, and the dithering mode. This
+// code uses the exoquant library for quantization.
+fn quantize(img: image::DynamicImage, palette: &[Color], dither: &str) -> Vec<u8> {
+    let (width, _) = img.dimensions();
+
+    // Convert image into a format exoquant can understand.
+    let img_vec = image_to_exoquant(img);
+
+    let indexed_data;
+    let colorspace = SimpleColorSpace::default();
+    // This match statement is messy because doing it the simplest way
+    // (changing the ditherer variable only) causes type errors.
+    match dither {
+        "none" => {
+            let ditherer = ditherer::None;
+            let remapper = Remapper::new(&palette, &colorspace, &ditherer);
+            indexed_data = remapper.remap(&img_vec, width as usize);            
+        }
+        "fs" => {
+            let ditherer = ditherer::FloydSteinberg::new();
+            let remapper = Remapper::new(&palette, &colorspace, &ditherer);
+            indexed_data = remapper.remap(&img_vec, width as usize);            
+
+        }
+        "fs-vanilla" => {
+            let ditherer = ditherer::FloydSteinberg::vanilla();
+            let remapper = Remapper::new(&palette, &colorspace, &ditherer);
+            indexed_data = remapper.remap(&img_vec, width as usize);            
+        }
+        "fs-checkered" => {
+            let ditherer = ditherer::FloydSteinberg::checkered();
+            let remapper = Remapper::new(&palette, &colorspace, &ditherer);
+            indexed_data = remapper.remap(&img_vec, width as usize);            
+        }
+        "ordered" => {
+            let ditherer = ditherer::Ordered;
+            let remapper = Remapper::new(&palette, &colorspace, &ditherer);
+            indexed_data = remapper.remap(&img_vec, width as usize);            
+        }
+        // We should never reach this unless there is a bug.
+        _ => {
+            let ditherer = ditherer::None;
+            let remapper = Remapper::new(&palette, &colorspace, &ditherer);
+            indexed_data = remapper.remap(&img_vec, width as usize);            
+        }
+    }
+    return indexed_data;    
+} 
+
 // Convert an image from the image libary's format into the format exoquant
 // uses.
 fn image_to_exoquant(input: image::DynamicImage) -> Vec<Color> {
@@ -586,9 +603,9 @@ fn image_to_exoquant(input: image::DynamicImage) -> Vec<Color> {
 }
 
 // Debug code: Print the color values of the palette.
-fn print_palette(palette: &Vec<Color>) {
-    for i in 0..palette.len() {
-        let color = palette[i];
-        println!("{} {} {} {}", color.r, color.g, color.b, color.a);
-    }
-}
+//fn print_palette(palette: &Vec<Color>) {
+//    for i in 0..palette.len() {
+//        let color = palette[i];
+//        println!("{} {} {} {}", color.r, color.g, color.b, color.a);
+//    }
+//}
