@@ -449,7 +449,7 @@ fn render_256colors(img: image::DynamicImage, dither: &str) {
 
     for y in 0..height {
         for x in 0..width {
-            let pixel_color = indexed_data[(width*y + x) as usize];
+            let pixel_color = indexed_data[(width*y + x) as usize] + 16;
             print!("{} ", color::Bg(color::AnsiValue(pixel_color)));
         }
         // Reset colors at the end of each line. If we don't do this, the
@@ -463,29 +463,14 @@ fn render_256colors(img: image::DynamicImage, dither: &str) {
 // hardcode this but it also makes sense to generate it because the palette is
 // large but fairly regular.
 fn generate_256colors_palette() -> Vec<Color> {
-    // Add the first 16 colors. These are the same as the 16 color mode.
-    let mut palette = vec![
-        Color { r: 0, g: 0, b: 0, a: 255 },
-        Color { r: 128, g: 0, b: 0, a: 255 },
-        Color { r: 0, g: 128, b: 0, a: 255 },
-        Color { r: 128, g: 128, b: 0, a: 255 },
-        Color { r: 0, g: 0, b: 128, a: 255 },
-        Color { r: 128, g: 0, b: 128, a: 255 },
-        Color { r: 0, g: 128, b: 128, a: 255 },
-        Color { r: 192, g: 192, b: 192, a: 255 },
-        Color { r: 128, g: 128, b: 128, a: 255 },
-        Color { r: 255, g: 0, b: 0, a: 255 },
-        Color { r: 0, g: 255, b: 0, a: 255 },
-        Color { r: 255, g: 255, b: 0, a: 255 },
-        Color { r: 0, g: 0, b: 255, a: 255 },
-        Color { r: 255, g: 0, b: 255, a: 255 },
-        Color { r: 0, g: 255, b: 255, a: 255 },
-        Color { r: 255, g: 255, b: 255, a: 255 },
-    ];
+    // Don't put the first 16 colors in the palette because they vary from
+    // terminal to terminal.
+    let mut palette = Vec::new();
     
-    // Generate the next 216 colors, which are the RGB colors. These colors
-    // have a regular structure: there are 6 levels for each color channel, and
-    // we use every possible combination, so we get 6^3=216 colors.
+    // Generate the 216 RGB colors. These colors have a regular structure:
+    // there are 6 levels for each color channel, and we use every possible
+    // combination, so we get 6^3=216 colors.
+
     // These are the values that each channel uses.
     let channel_vals = vec![ 0, 95, 135, 175, 215, 255 ];
     // Iterate through every possibility and add it.
